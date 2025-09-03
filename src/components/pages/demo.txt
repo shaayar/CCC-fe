@@ -1,0 +1,11 @@
+i have been given a task to develop a login and a sign up page for a learning website, in Vite react JS only and Tailwind css. on sign up page, the user can sign up as institute, campus ambassador or student. and on login page, they can choose their role while entering email and password. the color theme are:
+#ffa21f - orange peel
+#12122b - oxford blue
+#fffae5 - cosmic latte
+#c2c2c2 - silver
+#2d2d2d - jet
+
+and the api endpoints are:
+login:https://ccc-backend-0qxy.onrender.com/login
+sign up:https://ccc-backend-0qxy.onrender.com/signup
+can you give me a prompt which does the same.
