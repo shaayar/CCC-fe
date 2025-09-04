@@ -1,23 +1,39 @@
-import React, { useEffect } from 'react';
-import { CheckCircle, XCircle } from 'lucide-react';
+import React from 'react';
+import { AlertCircle, CheckCircle } from 'lucide-react';
 
-const Toast = ({ message, type, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
+const Toast = ({ message, type = 'error', onClose }) => {
+  if (!message) return null;
+
+  const styles = {
+    error: {
+      bg: 'bg-red-50 border-red-200',
+      text: 'text-red-700',
+      icon: AlertCircle,
+      iconColor: 'text-red-600'
+    },
+    success: {
+      bg: 'bg-green-50 border-green-200',
+      text: 'text-green-700',
+      icon: CheckCircle,
+      iconColor: 'text-green-600'
+    }
+  };
+
+  const style = styles[type];
+  const IconComponent = style.icon;
 
   return (
-    <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 flex items-center gap-2 transform transition-all duration-300 ${type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-      }`}>
-      {type === 'success' ? (
-        <CheckCircle className="w-5 h-5" />
-      ) : (
-        <XCircle className="w-5 h-5" />
+    <div className={`mb-4 p-4 rounded-lg border flex items-center gap-2 ${style.bg}`}>
+      <IconComponent size={16} className={style.iconColor} />
+      <span className={`text-sm ${style.text}`}>{message}</span>
+      {onClose && (
+        <button
+          onClick={onClose}
+          className={`ml-auto ${style.text} hover:opacity-75`}
+        >
+          ×
+        </button>
       )}
-      <span>{message}</span>
     </div>
   );
 };

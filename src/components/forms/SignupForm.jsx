@@ -1,126 +1,296 @@
 import React, { useState } from 'react';
-import { User, Mail } from 'lucide-react';
+import { Mail, ArrowLeft, Upload, X } from 'lucide-react';
 import Input from '../ui/Input';
 import PasswordInput from '../ui/PasswordInput';
-import RoleSelector from '../ui/RoleSelector';
 import Button from '../ui/Button';
+import RoleSelector from '../ui/RoleSelector';
 import Toast from '../ui/Toast';
-import AuthHeader from '../ui/AuthHeader';
-import { api, API_ENDPOINTS } from '../../utils/api';
-import { validateForm } from '../../utils/validation';
+import { api } from '../../utils/api';
+import { validateSignupForm } from '../../utils/validation';
 
-const SignupForm = ({ onSwitchToLogin }) => {
+const SignupForm = ({ onSuccess, onSwitchToLogin }) => {
   const [formData, setFormData] = useState({
-    name: '',
+    // Common fields
+    fullName: '',
     email: '',
     password: '',
     confirmPassword: '',
-    role: ''
+    role: 'student',
+    
+    // Institute specific
+    instituteName: '',
+    location: '',
+    facultyName: '',
+    designation: '',
+    
+    // Campus ambassador specific
+    ambassadorId: '',
+    campusName: ''
   });
-  const [errors, setErrors] = useState({});
+  const [uploadedFile, setUploadedFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear field error when user starts typing
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.type.startsWith('image/')) {
+        setUploadedFile(file);
+        setFieldErrors(prev => ({ ...prev, file: '' }));
+      } else {
+        setError('Please upload an image file (JPG, PNG, etc.)');
+      }
+    }
+  };
+
+  const removeFile = () => {
+    setUploadedFile(null);
+  };
 
   const handleSubmit = async () => {
-    const newErrors = validateForm(formData, 'signup');
-    setErrors(newErrors);
+    setError('');
+    setSuccess('');
+    setFieldErrors({});
 
-    if (Object.keys(newErrors).length > 0) return;
+    // Validate form
+    const validation = validateSignupForm(formData, uploadedFile);
+    if (!validation.isValid) {
+      setFieldErrors(validation.errors);
+      return;
+    }
 
     setLoading(true);
+
     try {
-      const { confirmPassword, ...signupData } = formData;
-      const result = await api.post(API_ENDPOINTS.SIGNUP, signupData);
-      setToast({ type: 'success', message: 'Account created successfully! Please sign in.' });
-      console.log('Signup successful:', result);
-      setTimeout(() => onSwitchToLogin(), 2000);
-    } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Signup failed. Please try again.' });
+      const { response, data } = await api.signup(formData, uploadedFile);
+
+      if (response.ok) {
+        setSuccess('Account created successfully! You can now login.');
+        // Reset form
+        setFormData({
+          fullName: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          role: 'student',
+          instituteName: '',
+          location: '',
+          facultyName: '',
+          designation: '',
+          ambassadorId: '',
+          campusName: ''
+        });
+        setUploadedFile(null);
+        if (onSuccess) onSuccess(data);
+      } else {
+        setError(data.message || 'Signup failed. Please try again.');
+      }
+    } catch {
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  };
-
   return (
-    <>
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
-
-      <AuthHeader
-        title="Join Us Today"
-        subtitle="Create your account and start learning"
-      />
+    <div className="bg-white p-8 rounded-2xl shadow-lg max-h-[80vh] overflow-y-auto">
+      <Toast message={error} type="error" />
+      <Toast message={success} type="success" />
 
       <div className="space-y-6">
+        <RoleSelector
+          selectedRole={formData.role}
+          onRoleChange={(role) => handleInputChange('role', role)}
+        />
+
+        {/* Common fields for all roles */}
         <Input
-          type="text"
-          label="Full Name"
-          placeholder="Enter your full name"
-          value={formData.name}
-          onChange={(e) => handleChange('name', e.target.value)}
-          error={errors.name}
-          icon={User}
+          label={formData.role === 'student' ? 'Full Name' : formData.role === 'institute' ? 'Faculty Full Name' : 'Full Name'}
+          required
+          value={formData.fullName}
+          onChange={(e) => handleInputChange('fullName', e.target.value)}
+          placeholder={formData.role === 'institute' ? 'Enter faculty full name' : 'Enter your full name'}
+          error={fieldErrors.fullName}
         />
 
         <Input
-          type="email"
           label="Email Address"
-          placeholder="Enter your email"
-          value={formData.email}
-          onChange={(e) => handleChange('email', e.target.value)}
-          error={errors.email}
+          type="email"
           icon={Mail}
+          required
+          value={formData.email}
+          onChange={(e) => handleInputChange('email', e.target.value)}
+          placeholder="Enter your email"
+          error={fieldErrors.email}
         />
 
         <PasswordInput
           label="Password"
-          placeholder="Create a password (min 8 characters)"
+          required
           value={formData.password}
-          onChange={(e) => handleChange('password', e.target.value)}
-          error={errors.password}
+          onChange={(e) => handleInputChange('password', e.target.value)}
+          placeholder="Create a password"
+          error={fieldErrors.password}
         />
 
+        {/* Confirm Password */}
         <PasswordInput
           label="Confirm Password"
-          placeholder="Confirm your password"
+          required
           value={formData.confirmPassword}
-          onChange={(e) => handleChange('confirmPassword', e.target.value)}
-          error={errors.confirmPassword}
+          onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+          placeholder="Confirm your password"
+          error={fieldErrors.confirmPassword}
         />
 
-        <RoleSelector
-          value={formData.role}
-          onChange={(role) => handleChange('role', role)}
-          error={errors.role}
-        />
+        {/* Institute specific fields */}
+        {formData.role === 'institute' && (
+          <>
+            <Input
+              label="Institute Name"
+              required
+              value={formData.instituteName}
+              onChange={(e) => handleInputChange('instituteName', e.target.value)}
+              placeholder="Enter institute name"
+              error={fieldErrors.instituteName}
+            />
+            <Input
+              label="Location"
+              required
+              value={formData.location}
+              onChange={(e) => handleInputChange('location', e.target.value)}
+              placeholder="Enter institute location"
+              error={fieldErrors.location}
+            />
+            <Input
+              label="Designation"
+              required
+              value={formData.designation}
+              onChange={(e) => handleInputChange('designation', e.target.value)}
+              placeholder="Enter your designation"
+              error={fieldErrors.designation}
+            />
+          </>
+        )}
 
-        <Button onClick={handleSubmit} loading={loading}>
-          Create Account
+        {/* Campus Ambassador specific fields */}
+        {formData.role === 'campus_ambassador' && (
+          <>
+            <Input
+              label="Campus Name"
+              required
+              value={formData.campusName}
+              onChange={(e) => handleInputChange('campusName', e.target.value)}
+              placeholder="Enter your campus name"
+              error={fieldErrors.campusName}
+            />
+            <Input
+              label="Ambassador ID"
+              required
+              value={formData.ambassadorId}
+              onChange={(e) => handleInputChange('ambassadorId', e.target.value)}
+              placeholder="Enter your ambassador ID"
+              error={fieldErrors.ambassadorId}
+            />
+          </>
+        )}
+
+        {/* File upload for institutes */}
+        {formData.role === 'institute' && (
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: '#12122b' }}>
+              Institute Proof Document <span className="text-red-500">*</span>
+            </label>
+            <p className="text-xs mb-3" style={{ color: '#2d2d2d' }}>
+              Upload your institute ID card or official document as proof
+            </p>
+
+            {!uploadedFile ? (
+              <div className="border-2 border-dashed rounded-lg p-6 text-center transition-colors hover:border-orange-300"
+                style={{ borderColor: fieldErrors.file ? '#ef4444' : '#c2c2c2' }}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="cursor-pointer flex flex-col items-center gap-3"
+                >
+                  <Upload size={32} style={{ color: '#c2c2c2' }} />
+                  <div>
+                    <p className="font-medium" style={{ color: '#12122b' }}>
+                      Click to upload document
+                    </p>
+                    <p className="text-sm" style={{ color: '#2d2d2d' }}>
+                      PNG, JPG, JPEG up to 10MB
+                    </p>
+                  </div>
+                </label>
+              </div>
+            ) : (
+              <div className="border rounded-lg p-4 flex items-center justify-between" style={{ borderColor: '#c2c2c2' }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded bg-green-100 flex items-center justify-center">
+                    <Upload size={16} className="text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm" style={{ color: '#12122b' }}>
+                      {uploadedFile.name}
+                    </p>
+                    <p className="text-xs" style={{ color: '#2d2d2d' }}>
+                      {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeFile}
+                  className="text-red-500 hover:text-red-700 p-1"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+            {fieldErrors.file && (
+              <p className="mt-1 text-sm text-red-600">{fieldErrors.file}</p>
+            )}
+          </div>
+        )}
+
+        <Button
+          onClick={handleSubmit}
+          disabled={loading}
+          variant="primary"
+          size="lg"
+          className="w-full"
+        >
+          {loading ? 'Creating Account...' : 'Create Account'}
         </Button>
       </div>
 
-      <div className="text-center mt-6">
-        <span className="text-[#c2c2c2]">Already have an account? </span>
+      <div className="mt-6 text-center">
         <button
           onClick={onSwitchToLogin}
-          className="text-[#ffa21f] hover:underline font-medium transition-all"
+          className="inline-flex items-center gap-2 text-white hover:underline"
         >
-          Sign in here
+          <ArrowLeft size={16} />
+          Back to Login
         </button>
       </div>
-    </>
+    </div>
   );
 };
 

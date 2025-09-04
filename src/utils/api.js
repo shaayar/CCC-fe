@@ -1,25 +1,64 @@
-// API Utility Functions
+const API_BASE_URL = 'https://ccc-backend-0qxy.onrender.com';
+
 export const api = {
-  async post(url, data) {
-    const response = await fetch(url, {
+  googleAuth: async (authData) => {
+    const response = await fetch(`${API_BASE_URL}/auth/google`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(authData),
     });
 
-    const result = await response.json();
+    const data = await response.json();
+    return { response, data };
+  },
 
-    if (!response.ok) {
-      throw new Error(result.message || `HTTP error! status: ${response.status}`);
+  login: async (loginData) => {
+    const response = await fetch(`${API_BASE_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(loginData),
+    });
+
+    const data = await response.json();
+    return { response, data };
+  },
+
+  signup: async (signupData, file = null) => {
+    let body;
+    let headers = {};
+
+    if (file) {
+      // Use FormData for file uploads
+      const formData = new FormData();
+      Object.keys(signupData).forEach(key => {
+        if (key === 'age') {
+          formData.append(key, parseInt(signupData[key]));
+        } else {
+          formData.append(key, signupData[key]);
+        }
+      });
+      formData.append('proof', file);
+      body = formData;
+    } else {
+      // Use JSON for regular signup
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify({
+        ...signupData,
+        age: parseInt(signupData.age)
+      });
     }
 
-    return result;
-  }
-};
+    const response = await fetch(`${API_BASE_URL}/signup`, {
+      method: 'POST',
+      headers,
+      body,
+    });
 
-export const API_ENDPOINTS = {
-  LOGIN: 'https://ccc-backend-0qxy.onrender.com/login',
-  SIGNUP: 'https://ccc-backend-0qxy.onrender.com/signup'
+    const data = await response.json();
+    return { response, data };
+  }
 };
